@@ -1,63 +1,79 @@
-#!/usr/bin/env python3
-import time
-import colorsys
-import ioexpander as io
+from pimoroni_i2c import PimoroniI2C
+from breakout_encoder import BreakoutEncoder
+import plasma
+from plasma import plasma_stick
+
+"""
+Change the colour of your LEDs easily by hooking up an RGB Encoder Breakout!
+"""
+
+# set how many LEDs you have
+NUM_LEDS = 50
+
+# make this number bigger for more precise colour adjustments
+STEPS_PER_REV = 24
+
+i2c = PimoroniI2C(plasma_stick.SDA, plasma_stick.SCL)
+enc = BreakoutEncoder(i2c)
+
+enc.set_brightness(1.0)
+# enc.set_direction(BreakoutEncoder.DIRECTION_CCW)     # Uncomment this to flip the direction
 
 
-print("""rotary.py
+def hsv_to_rgb(h, s, v):
+    # From CPython Lib/colorsys.py
+    if s == 0.0:
+        return v, v, v
+    i = int(h * 6.0)
+    f = (h * 6.0) - i
+    p = v * (1.0 - s)
+    q = v * (1.0 - s * f)
+    t = v * (1.0 - s * (1.0 - f))
+    i = i % 6
+    if i == 0:
+        return v, t, p
+    if i == 1:
+        return q, v, p
+    if i == 2:
+        return p, v, t
+    if i == 3:
+        return p, q, v
+    if i == 4:
+        return t, p, v
+    if i == 5:
+        return v, p, q
 
-Change the I2C_ADDR to:
- - 0x0F to use with the Rotary Encoder breakout.
- - 0x18 to use with IO Expander.
 
-Press Ctrl+C to exit.
+def count_changed(count):
+    print("Count: ", count, sep="")
+    h = ((count % STEPS_PER_REV) * 360.0) / STEPS_PER_REV     # Convert the count to a colour hue
+    r, g, b = [int(255 * c) for c in hsv_to_rgb(h / 360.0, 1.0, 1.0)]  # rainbow magic
+    # set the encoder LED colour
+    enc.set_led(r, g, b)
+    # set the led strip to match
+    for i in range(NUM_LEDS):
+        led_strip.set_rgb(i, r, g, b)
 
-""")
 
-I2C_ADDR = 0x0F  # 0x18 for IO Expander, 0x0F for the encoder breakout
+# WS2812 / NeoPixel™ LEDs
+led_strip = plasma.WS2812(NUM_LEDS, 0, 0, plasma_stick.DAT, color_order=plasma.COLOR_ORDER_RGB)
 
-PIN_RED = 1
-PIN_GREEN = 7
-PIN_BLUE = 2
-
-POT_ENC_A = 12
-POT_ENC_B = 3
-POT_ENC_C = 11
-
-BRIGHTNESS = 0.5                # Effectively the maximum fraction of the period that the LED will be on
-PERIOD = int(255 / BRIGHTNESS)  # Add a period large enough to get 0-255 steps at the desired brightness
-
-ioe = io.IOE(i2c_addr=I2C_ADDR, interrupt_pin=4)
-
-# Swap the interrupt pin for the Rotary Encoder breakout
-if I2C_ADDR == 0x0F:
-    ioe.enable_interrupt_out(pin_swap=True)
-
-ioe.setup_rotary_encoder(1, POT_ENC_A, POT_ENC_B, pin_c=POT_ENC_C)
-
-ioe.set_pwm_period(PERIOD)
-ioe.set_pwm_control(divider=2)  # PWM as fast as we can to avoid LED flicker
-
-ioe.set_mode(PIN_RED, io.PWM, invert=True)
-ioe.set_mode(PIN_GREEN, io.PWM, invert=True)
-ioe.set_mode(PIN_BLUE, io.PWM, invert=True)
-
-print("Running LED with {} brightness steps.".format(int(PERIOD * BRIGHTNESS)))
+# Start updating the LED strip
+led_strip.start()
 
 count = 0
-r, g, b, = 0, 0, 0
+
+count_changed(count)
+
+enc.clear_interrupt_flag()
 
 while True:
-    if ioe.get_interrupt():
-        count = ioe.read_rotary_encoder(1)
-        ioe.clear_interrupt()
+    if enc.get_interrupt_flag():
+        count = enc.read()
+        enc.clear_interrupt_flag()
 
-    h = (count % 360) / 360.0
-    r, g, b = [int(c * PERIOD * BRIGHTNESS) for c in colorsys.hsv_to_rgb(h, 1.0, 1.0)]
-    ioe.output(PIN_RED, r)
-    ioe.output(PIN_GREEN, g)
-    ioe.output(PIN_BLUE, b)
+        while count < 0:
+            count += STEPS_PER_REV
 
-    print(count, r, g, b)
+        count_changed(count)
 
-    time.sleep(1.0 / 30)
