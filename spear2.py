@@ -3,9 +3,6 @@ from breakout_encoder import BreakoutEncoder
 import plasma
 from plasma import plasma_stick
 
-"""
-Change the colour of your LEDs easily by hooking up an RGB Encoder Breakout!
-"""
 
 # set how many LEDs you have
 NUM_LEDS = 50
