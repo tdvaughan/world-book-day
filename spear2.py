@@ -2,6 +2,8 @@ from pimoroni_i2c import PimoroniI2C
 from breakout_encoder import BreakoutEncoder
 import plasma
 from plasma import plasma_stick
+import time
+from random import random, uniform
 
 
 # set how many LEDs you have
@@ -47,9 +49,7 @@ def count_changed(count):
     r, g, b = [int(255 * c) for c in hsv_to_rgb(h / 360.0, 1.0, 1.0)]  # rainbow magic
     # set the encoder LED colour
     enc.set_led(r, g, b)
-    # set the led strip to match
-    for i in range(NUM_LEDS):
-        led_strip.set_rgb(i, r, g, b)
+    return h
 
 
 # WS2812 / NeoPixel™ LEDs
@@ -60,7 +60,7 @@ led_strip.start()
 
 count = 0
 
-count_changed(count)
+hue = count_changed(count)
 
 enc.clear_interrupt_flag()
 
@@ -72,5 +72,10 @@ while True:
         while count < 0:
             count += STEPS_PER_REV
 
-        count_changed(count)
+        hue = count_changed(count)
 
+    # Use random hues between `hue` value from rotary encoder
+    # and 50/360 higher hue, with modulo 1 to handle wraparound
+    for i in range(NUM_LEDS):
+        led_strip.set_hsv(i, uniform(hue / 360, (hue + 50) / 360) % 1, 1.0, random())
+    time.sleep(0.1)
