@@ -77,5 +77,8 @@ while True:
     # Use random hues between `hue` value from rotary encoder
     # and 50/360 higher hue, with modulo 1 to handle wraparound
     for i in range(NUM_LEDS):
-        led_strip.set_hsv(i, uniform(hue / 360, (hue + 50) / 360) % 1, 1.0, random())
+        led_strip.set_hsv(i, uniform(hue / 360, (hue + 50) / 360) % 1, 1.0, random()) # Mixed colour effect
+        # led_strip.set_hsv(i, (hue / 360) % 1, random(), random()) // White LED style to look more electric
     time.sleep(0.1)
+
+
